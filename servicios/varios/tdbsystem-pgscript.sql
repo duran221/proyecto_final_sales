@@ -1,0 +1,983 @@
+
+-- TDBSystem (Base de datos para el Sistema "Tienda de Barrio"), versión 0.6
+-- Un simple modelo de bases de datos para fines académicos
+-- Cree una base de datos Postgres en blanco y corra este script sobre ella.
+
+-- Enseguida, se usa DDL (Data Definition Language) para crear la base de datos
+
+DROP TABLE IF EXISTS categorias_productos CASCADE;
+DROP TABLE IF EXISTS presentaciones_productos CASCADE;
+DROP TABLE IF EXISTS productos CASCADE;
+DROP TABLE IF EXISTS bajas_productos;
+DROP TABLE IF EXISTS clientes CASCADE;
+DROP TABLE IF EXISTS pagos_clientes;
+DROP TABLE IF EXISTS personal CASCADE;
+DROP TABLE IF EXISTS proveedores CASCADE;
+DROP TABLE IF EXISTS pagos_proveedores;
+DROP TABLE IF EXISTS ventas CASCADE;
+DROP TABLE IF EXISTS detalles_ventas;
+DROP TABLE IF EXISTS devoluciones_ventas CASCADE;
+DROP TABLE IF EXISTS detalles_devoluciones_ventas;
+DROP TABLE IF EXISTS compras CASCADE;
+DROP TABLE IF EXISTS detalles_compras;
+DROP TABLE IF EXISTS devoluciones_compras CASCADE;
+DROP TABLE IF EXISTS detalles_devoluciones_compras;
+
+DROP VIEW IF EXISTS lista_productos CASCADE;
+DROP VIEW IF EXISTS lista_detalle_venta CASCADE;
+DROP VIEW IF EXISTS lista_detalle_compra CASCADE;
+
+DROP FUNCTION IF EXISTS insertar_producto CASCADE;
+DROP FUNCTION IF EXISTS insertar_venta CASCADE;
+DROP FUNCTION IF EXISTS insertar_compra CASCADE;
+DROP FUNCTION IF EXISTS id_siguiente_compra CASCADE;
+DROP FUNCTION IF EXISTS id_siguiente_venta CASCADE;
+DROP FUNCTION IF EXISTS insertar_presentacion CASCADE;
+DROP FUNCTION IF EXISTS insertar_categoria CASCADE;
+DROP FUNCTION IF EXISTS maximo;
+DROP FUNCTION IF EXISTS insertar_pago_cliente;
+DROP FUNCTION IF EXISTS insertar_baja_producto;
+
+DROP TYPE IF EXISTS tipo_detalle CASCADE;
+
+CREATE TABLE categorias_productos (
+	id_categoria_producto SMALLSERIAL NOT NULL,
+	nombre varchar NOT NULL UNIQUE,
+	PRIMARY KEY(id_categoria_producto)
+);
+
+CREATE TABLE presentaciones_productos (
+	id_presentacion_producto SMALLSERIAL NOT NULL,
+	descripcion varchar NOT NULL UNIQUE,
+	PRIMARY KEY(id_presentacion_producto)
+);
+
+CREATE TABLE productos (
+	id_producto SERIAL NOT NULL,
+	nombre varchar NOT NULL UNIQUE,
+	precio numeric NOT NULL DEFAULT 0,
+	iva numeric NOT NULL DEFAULT 0.0,
+	cantidad_disponible int2 NOT NULL DEFAULT 0,
+	cantidad_minima int2 NOT NULL DEFAULT 1,
+	cantidad_maxima int2 NOT NULL DEFAULT 1,
+	id_presentacion_producto int2 NOT NULL,
+	id_categoria_producto int2 NOT NULL,
+	PRIMARY KEY(id_producto),
+	CONSTRAINT ref_producto__categoria_producto FOREIGN KEY (id_categoria_producto)
+		REFERENCES categorias_productos(id_categoria_producto)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE,
+	CONSTRAINT ref_producto__presentacion_producto FOREIGN KEY (id_presentacion_producto)
+		REFERENCES presentaciones_productos(id_presentacion_producto)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE bajas_productos (
+	id_baja_producto SERIAL NOT NULL,
+	tipo_baja varchar NOT NULL,
+	fecha date NOT NULL,
+	cantidad int2 NOT NULL DEFAULT 0,
+	precio numeric NOT NULL DEFAULT 0,
+	id_producto int4 NOT NULL,
+	PRIMARY KEY(id_baja_producto),
+	CONSTRAINT tipos_bajas CHECK (tipo_baja IN ('Donación', 'Daño', 'Pérdida', 'Descomposición', 'Destrucción', 'Exclusión')),
+	CONSTRAINT ref_baja_productos__producto FOREIGN KEY (id_producto)
+		REFERENCES productos(id_producto)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE clientes (
+	id_cliente varchar NOT NULL,
+	nombre varchar NOT NULL,
+	telefonos varchar,
+	direccion varchar,
+	con_credito bool NOT NULL,
+	PRIMARY KEY(id_cliente)
+);
+
+CREATE TABLE pagos_clientes (
+	id_pago_cliente SERIAL NOT NULL,
+	id_cliente varchar NOT NULL,
+	valor_pago numeric NOT NULL DEFAULT 0,
+	fecha_pago date NOT NULL,
+	PRIMARY KEY(id_pago_cliente),
+	CONSTRAINT ref_pago_cliente__cliente FOREIGN KEY (id_cliente)
+		REFERENCES clientes(id_cliente)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE personal (
+	id_persona varchar NOT NULL,
+	nombre varchar NOT NULL,
+	telefono varchar NOT NULL,
+	direccion varchar NOT NULL,
+	perfil varchar NOT NULL,
+	contrasena varchar NOT NULL,
+	PRIMARY KEY(id_persona),
+	CONSTRAINT tipo_perfil CHECK (perfil IN('Administrador', 'Vendedor'))
+);
+
+CREATE TABLE proveedores (
+	id_proveedor varchar NOT NULL,
+	nombre varchar NOT NULL,
+	telefono varchar NOT NULL,
+	correo varchar,
+	PRIMARY KEY(id_proveedor)
+);
+
+CREATE TABLE pagos_proveedores (
+	id_pago_proveedor SERIAL NOT NULL,
+	id_proveedor varchar NOT NULL,
+	valor_pago numeric NOT NULL DEFAULT 0,
+	fecha_pago date NOT NULL,
+	PRIMARY KEY(id_pago_proveedor),
+	CONSTRAINT ref_pago_proveedor__proveedor FOREIGN KEY (id_proveedor)
+		REFERENCES proveedores(id_proveedor)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE ventas (
+	id_venta SERIAL NOT NULL,
+	fecha_venta date NOT NULL,
+	total_credito numeric NOT NULL DEFAULT 0,
+	total_contado numeric NOT NULL DEFAULT 0,
+	id_cliente varchar NOT NULL,
+	id_vendedor varchar NOT NULL,
+	PRIMARY KEY(id_venta),
+	CONSTRAINT ref_venta__cliente FOREIGN KEY (id_cliente)
+		REFERENCES clientes(id_cliente)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE,
+	CONSTRAINT ref_venta__personal FOREIGN KEY (id_vendedor)
+		REFERENCES personal(id_persona)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE detalles_ventas (
+	id_detalle_venta SERIAL NOT NULL,
+	cantidad int2 NOT NULL DEFAULT 0,
+	valor_producto numeric NOT NULL DEFAULT 0,
+	descuento numeric NOT NULL DEFAULT 0,
+	iva numeric NOT NULL DEFAULT 0,
+	id_venta int4 NOT NULL,
+	id_producto int4 NOT NULL,
+	PRIMARY KEY(id_detalle_venta),
+	CONSTRAINT ref_detalle_venta_a_venta FOREIGN KEY (id_venta)
+		REFERENCES ventas(id_venta)
+	MATCH SIMPLE
+	ON DELETE CASCADE
+	ON UPDATE CASCADE
+	NOT DEFERRABLE,
+	CONSTRAINT ref_detalle_venta__producto FOREIGN KEY (id_producto)
+		REFERENCES productos(id_producto)
+	MATCH SIMPLE
+	ON DELETE CASCADE
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+-- COMMENT ON COLUMN detalles_ventas.valor_producto IS 'debe permitir cálculo y entrada directa';
+
+CREATE TABLE devoluciones_ventas (
+	id_devolucion_venta SERIAL NOT NULL,
+	id_venta int4 NOT NULL,
+	fecha date NOT NULL,
+	PRIMARY KEY(id_devolucion_venta),
+	CONSTRAINT ref_devolucion_venta__venta FOREIGN KEY (id_venta)
+		REFERENCES ventas(id_venta)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE detalles_devoluciones_ventas (
+	id_detalle_devolucion_venta SERIAL NOT NULL,
+	id_devolucion_venta int4 NOT NULL,
+	id_producto int4 NOT NULL,
+	cantidad int2 NOT NULL DEFAULT 0,
+	PRIMARY KEY(id_detalle_devolucion_venta),
+	CONSTRAINT ref_detalle_devolucion__devolucion_venta FOREIGN KEY (id_devolucion_venta)
+		REFERENCES devoluciones_ventas(id_devolucion_venta)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE compras (
+	id_compra SERIAL NOT NULL,
+	fecha_compra date NOT NULL,
+	fecha_recibido date,
+	total_credito numeric NOT NULL DEFAULT 0,
+	total_contado numeric NOT NULL DEFAULT 0,
+	id_proveedor varchar NOT NULL,
+	PRIMARY KEY(id_compra),
+	CONSTRAINT ref_compra__proveedor FOREIGN KEY (id_proveedor)
+		REFERENCES proveedores(id_proveedor)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE detalles_compras (
+	id_detalle_compra SERIAL NOT NULL,
+	cantidad_pedida int2 NOT NULL DEFAULT 0,
+	cantidad_recibida int2 NOT NULL DEFAULT 0,
+	valor_producto numeric NOT NULL DEFAULT 0,
+	iva numeric DEFAULT 0,
+	id_compra int4 NOT NULL,
+	id_producto int4 NOT NULL,
+	PRIMARY KEY(id_detalle_compra),
+	CONSTRAINT ref_detalle_compra__compra FOREIGN KEY (id_compra)
+		REFERENCES compras(id_compra)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE,
+	CONSTRAINT ref_detalle_compra__presentacion_producto FOREIGN KEY (id_producto)
+		REFERENCES productos(id_producto)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE devoluciones_compras (
+	id_devolucion_compra SERIAL NOT NULL,
+	id_compra int4 NOT NULL,
+	fecha_devolucion date NOT NULL,
+	PRIMARY KEY(id_devolucion_compra),
+	CONSTRAINT ref_devolucion_pedido_a_pedido FOREIGN KEY (id_compra)
+		REFERENCES compras(id_compra)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+CREATE TABLE detalles_devoluciones_compras (
+	id_detalle_devolucion_compra SERIAL NOT NULL,
+	id_devolucion_compra int4 NOT NULL,
+	id_producto int4 NOT NULL,
+	cantidad int2 NOT NULL DEFAULT 0,
+	PRIMARY KEY(id_detalle_devolucion_compra),
+	CONSTRAINT ref_detalle_devolucion_pedido__devolucion_pedido FOREIGN KEY (id_devolucion_compra)
+		REFERENCES devoluciones_compras(id_devolucion_compra)
+	MATCH SIMPLE
+	ON DELETE NO ACTION
+	ON UPDATE CASCADE
+	NOT DEFERRABLE
+);
+
+-- A continuación un poco de Data Manipulation Language (DML) para disponer de algunas pruebas
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL001', 'Juan José Hernández Hernández', '8760001', 'Calle 10 # 11-11', true)
+	ON CONFLICT DO NOTHING;	
+	
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL002', 'Miguel Angel García García', '8760002', 'Calle 11 # 11-12', true)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL003', 'Juan Sebastián García García', '8760003', 'Calle 12 # 11-13', true)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL004', 'Juan David García Hernández', '8760004', 'Calle 13 # 11-14', false)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL005', 'Samuel David García García', '8760005', 'Calle 13 # 12-14', false)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL006', 'Juan Pablo García García', '8760006', 'Calle 13 # 12-15', false)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL007', 'Andrés Felipe García Martínez', '8760007', 'Calle 10 # 12-15', true)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL008', 'Juan Esteban Hernández Hernández', '8760008', 'Calle 12 # 11-15', false)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL009', 'Juan Diego Flores García', '8760009', 'Calle 10 # 11-15', false)
+	ON CONFLICT DO NOTHING;		
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES ('CL010', 'Angel David García Hernández', '8760010', 'Calle 9 # 11-15', false)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES('CL011','Francisco Diaz Diaz','8530000','Cra. 4 #18-32',true)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES('CL012','Luciana Garcia Jimenez','8534523','Cra. 1#13-18',true)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES('CL013','Sofia Lopez Trejos','8532310','Cra. 5 #16-52',true)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES('CL014','Melissa Mesa Marin','8538975','Cra. 7 #20-25',true)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES('CL015','Nicole Torres Marin','8539632','Cra. 6 #18-41',true)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO clientes(
+	id_cliente, nombre, telefonos, direccion, con_credito)
+	VALUES('CL016','Sol Carvajal Mejia','8530000','Cra.1 #13-20',true)
+	ON CONFLICT DO NOTHING;
+	
+-------------------------------------	
+
+INSERT INTO categorias_productos(nombre) VALUES ('Lacteos') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Cárnicos') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Frutas') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Verduras') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Cereales') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Aseo personal') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Aseo del hogar') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Condimentos') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Bebidas') ON CONFLICT DO NOTHING;
+INSERT INTO categorias_productos(nombre) VALUES ('Licores') ON CONFLICT DO NOTHING;
+
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Bolsa x 1000 cc') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Bolsa x 12 unidades') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Bolsa x 500 gramos') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Bolsa x 1 kg') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Botella no retornable x 2.5 lt.') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Botella no retornable x 1 lt.') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Botella no retornable x 600 ml.') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Bolsa x 5 kg. aprox.') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Unidad') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Caja x 250 gramos') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Caja x 500 gramos') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Paquete x 3 Unidades') ON CONFLICT DO NOTHING;
+INSERT INTO presentaciones_productos(descripcion) VALUES ('Caja') ON CONFLICT DO NOTHING;
+
+-------------------------------------	
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Leche Colanta', 2000, 1, 3, 20, 1, 1) 
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Lecha entera Celema', 1900, 4, 2, 15, 1, 1)
+	 ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Mandarinas', 3000, 5, 3, 10, 2, 3)
+	 ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Lentejas', 1000, 10, 5, 30, 3, 5)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Arroz Doña Pepa', 1200, 3, 5, 25, 3, 5)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Maíz trillado', 900, 6, 3, 10, 4, 5)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Lechuga', 1500, 7, 3, 10, 3, 4)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Kiwi', 2000, 3, 2, 9, 12, 3)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Maracuya', 3000, 3, 3, 10, 12, 3)
+	ON CONFLICT DO NOTHING;
+								  
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Cereal Madagascar', 3000, 1, 3, 10, 3, 5)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Cafe Monumental', 4500, 2, 5, 10, 3, 4)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Mantequilla Colanta', 3800, 2, 3, 10, 9, 4)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Jabon Ariel', 7800, 1, 3, 15, 4, 7)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Manzanas', 4500, 3, 3, 15, 12, 3)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Arroz Buen Dia', 1500, 1, 10, 30, 3, 5)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Frijol del Costal', 1500, 2, 5, 20, 3, 5)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Mantequilla Don Oleo', 3500, 1, 10, 20, 9, 4)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Crema de leche Colanta', 2200, 1, 10, 40, 3, 1)
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Jabon en polvo Josefina', 4000, 1, 5, 20, 4, 7)
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO productos(nombre, precio, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+	VALUES('Crema dental Colgate', 1800, 1, 10, 20, 9, 6)
+	ON CONFLICT DO NOTHING;
+	
+-------------------------------------	
+
+INSERT INTO personal(id_persona, nombre, telefono, direccion, perfil, contrasena)
+	VALUES('001','Jorge Pérez','8530001','Cra.3#10-34','Administrador','827ccb0eea8a706c4c34a16891f84e7b')
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO personal(id_persona, nombre, telefono, direccion, perfil, contrasena)
+	VALUES('002','Valeria Mejia Zapata','8536345','Cra.5#19-37','Vendedor','827ccb0eea8a706c4c34a16891f84e7b')
+	ON CONFLICT DO NOTHING;
+	
+INSERT INTO personal(id_persona, nombre, telefono, direccion, perfil, contrasena)
+	VALUES('003','Juan Bermudez Duque','8531235','Cra.1#11-23','Vendedor','827ccb0eea8a706c4c34a16891f84e7b')
+	ON CONFLICT DO NOTHING;
+
+INSERT INTO personal VALUES('AR10','Carlos Franco','3237059840','Calle 15 #30-17','Administrador','akm12');
+INSERT INTO personal VALUES('AR11','Edgar Velez','3157059840','Calle 25 #32-17','Vendedor','bkm13');
+INSERT INTO personal VALUES('AR12','Cristian Aristi','3183059840','Calle 95 #90-17','Vendedor','ckm14');
+INSERT INTO personal VALUES('AR13','Jose Londoño','3111059840','Calle 65 #10-27','Vendedor','dkm15');
+INSERT INTO personal VALUES('AR14','Juan Duran','3104059840','Calle 65 #50-57','Vendedor','ekm16');
+INSERT INTO personal VALUES('AR15','Maria Gomez','3110059840','Calle 65 #30-10','Vendedor','fkm17');
+INSERT INTO personal VALUES('AR16','Liliana Franco','3112059840','Calle 65 #30-40','Administrador','jkm18');
+INSERT INTO personal VALUES('AR17','Ana Solarte','3135459840','Calle 65 #12-11','Vendedor','hkm19');
+INSERT INTO personal VALUES('AR18','Josefa Franco','3106059840','Calle 65 #20-17','Vendedor','ikm10');
+INSERT INTO personal VALUES('AR19','Jenny Franco','3114059840','Calle 65 #10-17','Administrador','jkm21');
+
+
+INSERT INTO proveedores VALUES('PR01','Distribuidora Donde Pancho','7852212','dondepancho@gmail.com');
+INSERT INTO proveedores VALUES('PR02','Distribuidora Nuevo Sol','7852546','nuevosol@gmail.com');
+INSERT INTO proveedores VALUES('PR03','Lacteos Doña Vaca','7852345','vaca12@gmail.com');
+INSERT INTO proveedores VALUES('PR04','Granos La Cosecha','7852897','cose@gmail.com');
+INSERT INTO proveedores VALUES('PR05','Embutidos Don Chorizo','7652431','donchorizo@gmail.com');
+INSERT INTO proveedores VALUES('PR06','Fruteria Su Media Naranja','7552431','mimedianaranja@gmail.com');
+INSERT INTO proveedores VALUES('PR07','Productos y Productos SA','7752431','elproducto@gmail.com');
+INSERT INTO proveedores VALUES('PR08','Distribuidora ComaRico','7152431','comaricobien@gmail.com');
+								  
+-- A continuación algunas instrucciones DML disponibles mediante vistas o procedimientos almacenados
+								  
+CREATE OR REPLACE VIEW lista_productos AS										  
+	SELECT 	c.id_categoria_producto,
+				c.nombre categoria,
+				pp.id_presentacion_producto,
+				pp.descripcion presentacion,
+				p.id_producto,
+				p.nombre nombre,	
+				p.nombre || ' ' || pp.descripcion descripcion_producto,
+				iva porcentaje_iva,
+				p.precio,
+				p.cantidad_disponible,									  
+				p.cantidad_minima,									  
+				p.cantidad_maxima									  
+			FROM productos p
+				INNER JOIN categorias_productos c ON p.id_categoria_producto = c.id_categoria_producto
+				INNER JOIN presentaciones_productos pp ON p.id_presentacion_producto = pp.id_presentacion_producto
+			ORDER BY p.nombre, pp.descripcion;
+
+
+CREATE OR REPLACE VIEW lista_detalle_venta AS
+	SELECT DET.CANTIDAD,
+	0 CANTIDAD_DEVUELTA,
+	PR.NOMBRE,
+	PR.ID_PRODUCTO,
+	PRE.DESCRIPCION,
+	PR.PRECIO,
+	ID_VENTA,
+	PR.PRECIO*DET.CANTIDAD SUBTOTAL
+	FROM DETALLES_VENTAS DET 
+	INNER JOIN PRODUCTOS PR ON DET.ID_PRODUCTO=PR.ID_PRODUCTO 
+	INNER JOIN PRESENTACIONES_PRODUCTOS PRE ON PR.ID_PRESENTACION_PRODUCTO=PRE.ID_PRESENTACION_PRODUCTO;			  
+
+CREATE OR REPLACE VIEW lista_detalle_compra AS
+	SELECT DET.CANTIDAD_RECIBIDA,
+	0 CANTIDAD_DEVUELTA,
+	PR.NOMBRE,
+	PR.ID_PRODUCTO,
+	PRE.DESCRIPCION,
+	PR.PRECIO,
+	ID_COMPRA,
+	PR.PRECIO*DET.CANTIDAD_RECIBIDA SUBTOTAL
+	FROM DETALLES_COMPRAS DET 
+	INNER JOIN PRODUCTOS PR ON DET.ID_PRODUCTO=PR.ID_PRODUCTO 
+	INNER JOIN PRESENTACIONES_PRODUCTOS PRE ON PR.ID_PRESENTACION_PRODUCTO=PRE.ID_PRESENTACION_PRODUCTO;			  
+
+
+
+CREATE OR REPLACE FUNCTION insertar_categoria(nombre_categoria character varying)
+	RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      id_categoria integer;
+BEGIN
+	id_categoria = 0;
+	
+	INSERT INTO categorias_productos(nombre)
+		VALUES (nombre_categoria)
+		RETURNING id_categoria_producto into id_categoria;
+	RETURN id_categoria;
+END;
+$BODY$;
+
+CREATE OR REPLACE FUNCTION insertar_presentacion(descripcion_presentacion character varying)
+	RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      id_presentacion integer;
+BEGIN
+	id_presentacion = 0;
+	
+	INSERT INTO presentaciones_productos(descripcion)
+		VALUES (descripcion_presentacion)
+		RETURNING id_presentacion_producto into id_presentacion;
+	RETURN id_presentacion;
+END;
+$BODY$;
+
+
+
+
+CREATE OR REPLACE FUNCTION insertar_producto(
+	nombre_producto character varying,
+	precio_producto numeric,
+	porcentaje_iva numeric,
+	disponible integer,
+	minimo integer,
+	maximo integer,
+	id_presentacion integer,
+	id_categoria integer)
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      idproducto integer;
+BEGIN
+	idproducto = 0;
+	
+	INSERT INTO productos(
+		nombre, precio, iva, cantidad_disponible, cantidad_minima, cantidad_maxima, id_presentacion_producto, id_categoria_producto)
+		VALUES (nombre_producto, precio_producto, porcentaje_iva, disponible, minimo, maximo, id_presentacion, id_categoria)
+		RETURNING id_producto into idproducto;
+	RETURN idproducto;
+END;
+$BODY$;
+
+-- determina cuál es el máximo valor de una columna de tipo entero en cualquier tabla
+CREATE OR REPLACE FUNCTION maximo(
+	tabla character varying,
+	columna character varying) RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      existe boolean;
+	  ultimo integer;
+	  sql varchar;
+BEGIN
+    -- https://www.postgresql.org/docs/current/functions-string.html#FUNCTIONS-STRING-FORMAT
+	EXECUTE format('SELECT COUNT(*) > 0 FROM information_schema.columns WHERE table_name = %L and column_name = %L',
+				   tabla, columna) INTO existe;
+	IF existe THEN
+		EXECUTE format('SELECT MAX(%s) FROM %s', columna, tabla) INTO ultimo;
+		IF ultimo IS NULL THEN
+			ultimo = 0;
+		END IF;
+		RETURN ultimo;
+	ELSE
+		RAISE EXCEPTION 'Tabla o columna errónea: % | %', tabla, columna;
+	END IF;
+END;
+$BODY$;
+
+
+
+
+-- Un bloque anónimo para la creación controlada de un tipo necesario para la inserción de detalles de ventas
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_detalle') THEN
+        CREATE TYPE tipo_detalle AS (
+			cantidad integer, 
+			cantidad_pedida integer, 
+			cantidad_recibida integer, 
+			cantidad_devuelta integer,
+			id_producto integer,
+			producto varchar, 
+			valor numeric, 
+			iva_porcentaje numeric, 
+			iva_valor numeric, 
+			subtotal numeric
+		);
+    END IF;
+END$$;
+
+-- la función que registra la venta, los detalles de venta y afecta el stock de productos
+CREATE OR REPLACE FUNCTION insertar_venta(datos_venta JSON)
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+	i INTEGER;
+	idventa INTEGER;
+	idproducto INTEGER;
+	fecha DATE;
+	cliente VARCHAR;
+	vendedor VARCHAR;
+	total NUMERIC;
+	iva NUMERIC;
+	paga NUMERIC;
+	credito NUMERIC;
+	linea_venta RECORD;
+BEGIN
+	idventa = 0;
+	-- transfiere a variables las propiedades del objeto JSON 'datos_venta', excepto el array 'detalle'
+	SELECT (datos_venta#>>'{fecha}')::DATE FROM json_each(datos_venta) WHERE key = 'fecha' INTO fecha;
+	SELECT (datos_venta#>>'{cliente}')::VARCHAR FROM json_each(datos_venta) WHERE key = 'cliente' INTO cliente;
+	SELECT (datos_venta#>>'{vendedor}')::VARCHAR FROM json_each(datos_venta) WHERE key = 'vendedor' INTO vendedor;
+	SELECT (datos_venta#>>'{total}')::FLOAT FROM json_each(datos_venta) WHERE key = 'total' INTO total;
+	SELECT (datos_venta#>>'{iva}')::FLOAT FROM json_each(datos_venta) WHERE key = 'iva' INTO iva;
+	SELECT (datos_venta#>>'{paga}')::FLOAT FROM json_each(datos_venta) WHERE key = 'paga' INTO paga;
+	
+	credito = total - paga;
+	
+	INSERT INTO ventas(fecha_venta, total_credito, total_contado, id_cliente, id_vendedor)
+		VALUES (fecha, credito, paga, cliente, vendedor) 
+		RETURNING id_venta INTO idventa;
+	
+	IF idventa > 0 THEN
+		-- recorre las filas correspondientes a cada detalle de venta
+		FOR linea_venta IN
+			-- expande el array de objetos 'detalle' a un conjunto de filas de tipo 'tipo_detalle'
+			SELECT * FROM json_populate_recordset(null::tipo_detalle, (
+				-- recupera el JSON correspondiente a la propiedad 'detalle'
+				SELECT value FROM json_each(datos_venta) WHERE key = 'detalle')
+			) LOOP
+			i = strpos(linea_venta.producto, '-') - 1;
+			idproducto = substr(linea_venta.producto, 1, i);
+			
+			-- por cada detalle, inserta una línea de venta. Esta versión NO maneja descuentos (0.0)
+			INSERT INTO detalles_ventas(cantidad, valor_producto, descuento, iva, id_venta, id_producto)
+				VALUES (linea_venta.cantidad, linea_venta.valor, 0.0, linea_venta.iva_valor, idventa, idproducto);
+
+			-- en productos, sustraer la cantidad vendida de la cantidad_disponible 
+			UPDATE productos SET cantidad_disponible = cantidad_disponible - linea_venta.cantidad 
+				WHERE id_producto = idproducto;
+		END LOOP;
+	END IF;
+	
+	RETURN idventa;
+END;
+$BODY$;
+
+CREATE OR REPLACE FUNCTION insertar_compra(datos_compra JSON)
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+	i INTEGER;
+	idcompra INTEGER;
+	idproducto INTEGER;
+	fechacompra DATE;
+	fecharecibido DATE;
+	proveedor VARCHAR; 
+	total NUMERIC;
+	iva NUMERIC;
+	paga NUMERIC;
+	credito NUMERIC;
+	linea_compra RECORD;
+BEGIN
+	idcompra = 0;
+	-- transfiere a variables las propiedades del objeto JSON 'datos_venta', excepto el array 'detalle'
+	SELECT (datos_compra#>>'{fecha_compra}')::DATE FROM json_each(datos_compra) WHERE key = 'fecha_compra' INTO fechacompra;
+	SELECT (datos_compra#>>'{fecha_recibido}')::DATE FROM json_each(datos_compra) WHERE key = 'fecha_recibido' INTO fecharecibido;
+	SELECT (datos_compra#>>'{proveedor}')::VARCHAR FROM json_each(datos_compra) WHERE key = 'proveedor' INTO proveedor;
+	SELECT (datos_compra#>>'{total}')::FLOAT FROM json_each(datos_compra) WHERE key = 'total' INTO total;
+	SELECT (datos_compra#>>'{iva}')::FLOAT FROM json_each(datos_compra) WHERE key = 'iva' INTO iva;
+	SELECT (datos_compra#>>'{paga}')::FLOAT FROM json_each(datos_compra) WHERE key = 'paga' INTO paga;
+	
+	credito = total - paga;
+	
+	INSERT INTO compras(fecha_compra,fecha_recibido,total_credito,total_contado,id_proveedor)
+		VALUES (fechacompra, fecharecibido, credito, paga, proveedor)
+		RETURNING id_compra INTO idcompra;
+	
+	IF idcompra > 0 THEN
+		-- recorre las filas correspondientes a cada detalle de venta
+		FOR linea_compra IN
+			-- expande el array de objetos 'detalle' a un conjunto de filas de tipo 'tipo_detalle'
+			SELECT * FROM json_populate_recordset(null::tipo_detalle, (
+				-- recupera el JSON correspondiente a la propiedad 'detalle'
+				SELECT value FROM json_each(datos_compra) WHERE key = 'detalle')
+			) LOOP
+			i = strpos(linea_compra.producto, '-') - 1;
+			idproducto = substr(linea_compra.producto, 1, i);
+			
+			-- por cada detalle, inserta una línea de compra. Esta versión NO maneja descuentos (0.0)
+			INSERT INTO detalles_compras(cantidad_pedida, cantidad_recibida, valor_producto, iva, id_compra, id_producto)
+				VALUES (linea_compra.cantidad_pedida, linea_compra.cantidad_recibida, linea_compra.valor, linea_compra.iva_valor, idcompra, idproducto);
+	
+			-- en productos, aumentar la cantidad comprada a la cantidad_disponible 
+			UPDATE productos SET cantidad_disponible = cantidad_disponible + linea_compra.cantidad_recibida
+				WHERE id_producto = idproducto;
+		END LOOP;
+	END IF;
+	
+	RETURN idcompra;
+END;
+$BODY$;
+
+
+
+-- la función que registra la venta, los detalles de venta y afecta el stock de productos
+CREATE OR REPLACE FUNCTION insertar_devolucion_venta(datos_devolucion JSON)
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+	i INTEGER;
+	id_devolucion INTEGER;
+	idproducto INTEGER;
+	idventa INTEGER;
+	fecha DATE;
+	cliente VARCHAR;
+	cant INTEGER;
+	candidad_disponible INTEGER;
+	linea_devolucion RECORD;
+BEGIN
+	idventa = 0;
+	-- transfiere a variables las propiedades del objeto JSON 'datos_venta', excepto el array 'detalle'
+	SELECT (datos_devolucion#>>'{fecha_devolucion}')::DATE FROM json_each(datos_devolucion) WHERE key = 'fecha_devolucion' INTO fecha;
+	SELECT (datos_devolucion#>>'{venta}')::INTEGER FROM json_each(datos_devolucion) WHERE key = 'venta' INTO idventa;
+	
+	INSERT INTO devoluciones_ventas(id_venta,fecha)
+		VALUES (idventa,fecha) 
+		RETURNING id_devolucion_venta INTO id_devolucion;
+	
+	IF id_devolucion > 0 THEN
+		-- recorre las filas correspondientes a cada detalle de venta
+		FOR linea_devolucion IN
+			-- expande el array de objetos 'detalle' a un conjunto de filas de tipo 'tipo_detalle'
+			SELECT * FROM json_populate_recordset(null::tipo_detalle, (
+				-- recupera el JSON correspondiente a la propiedad 'detalle'
+				SELECT value FROM json_each(datos_devolucion) WHERE key = 'detalle')
+			) LOOP
+
+			--Se castea el item del bloque anonimo
+			idproducto= linea_devolucion.id_producto::integer;
+			
+			-- por cada detalle, inserta una línea de venta. Esta versión NO maneja descuentos (0.0)
+			INSERT INTO detalles_devoluciones_ventas(id_devolucion_venta,id_producto,cantidad)
+				VALUES (id_devolucion,idproducto,linea_devolucion.cantidad_devuelta);
+
+			-- en productos, sustraer la cantidad vendida de la cantidad_disponible 
+			UPDATE productos SET cantidad_disponible = cantidad_disponible + linea_devolucion.cantidad_devuelta 
+				WHERE id_producto = linea_devolucion.id_producto;
+
+			UPDATE DETALLES_VENTAS SET cantidad=cantidad-linea_devolucion.cantidad_devuelta;
+
+		END LOOP;
+	END IF;
+
+	RETURN id_devolucion;
+END;
+$BODY$;
+
+-- la función registra la devolucion de una compra y los detalles de devolucion de compra
+CREATE OR REPLACE FUNCTION insertar_devolucion_compra(datos_devolucion JSON)
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+	i INTEGER;
+	id_devolucion INTEGER;
+	idproducto INTEGER;
+	idcompra INTEGER;
+	fecha DATE;
+	proveedor VARCHAR;
+	cant INTEGER;
+	candidad_disponible INTEGER;
+	linea_devolucion RECORD;
+BEGIN
+	idcompra = 0;
+	-- transfiere a variables las propiedades del objeto JSON 'datos_venta', excepto el array 'detalle'
+	SELECT (datos_devolucion#>>'{fecha_devolucion}')::DATE FROM json_each(datos_devolucion) WHERE key = 'fecha_devolucion' INTO fecha;
+	SELECT (datos_devolucion#>>'{compra}')::INTEGER FROM json_each(datos_devolucion) WHERE key = 'compra' INTO idcompra;
+	
+	INSERT INTO devoluciones_compras(id_compra,fecha_devolucion)
+		VALUES (idcompra,fecha) 
+		RETURNING id_devolucion_compra INTO id_devolucion;
+	
+	IF id_devolucion > 0 THEN
+		-- recorre las filas correspondientes a cada detalle de venta
+		FOR linea_devolucion IN
+			-- expande el array de objetos 'detalle' a un conjunto de filas de tipo 'tipo_detalle'
+			SELECT * FROM json_populate_recordset(null::tipo_detalle, (
+				-- recupera el JSON correspondiente a la propiedad 'detalle'
+				SELECT value FROM json_each(datos_devolucion) WHERE key = 'detalle')
+			) LOOP
+
+			--Se castea el item del bloque anonimo
+			idproducto= linea_devolucion.id_producto::integer;
+			
+			-- por cada detalle, inserta una línea de compra.
+			INSERT INTO detalles_devoluciones_compras(id_devolucion_compra,id_producto,cantidad)
+				VALUES (id_devolucion,idproducto,linea_devolucion.cantidad_devuelta);
+
+			-- en productos, sustraer la cantidad vendida de la cantidad_disponible 
+			UPDATE productos SET cantidad_disponible = cantidad_disponible - linea_devolucion.cantidad_devuelta 
+				WHERE id_producto = linea_devolucion.id_producto;
+
+			UPDATE DETALLES_COMPRAS SET cantidad_recibida=cantidad_recibida-linea_devolucion.cantidad_devuelta;
+
+		END LOOP;
+	END IF;
+
+	RETURN id_devolucion;
+END;
+$BODY$;
+
+
+
+
+
+
+
+CREATE OR REPLACE FUNCTION siguiente(
+    	tabla character varying,
+    	columna character varying) RETURNS integer
+	LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+  	existe boolean;
+    	  id integer;
+    	  sql varchar;
+BEGIN
+		--Cuenta los registros y devuelve true o false '||' es concatenación:
+    	sql = 'SELECT COUNT(*) > 0 FROM information_schema.columns WHERE table_name = ''' ||
+    	   	tabla || ''' and column_name = ''' || columna || '''';
+
+	
+		--Ejecute la cadena y guardando el resultado en 'existe'  	  
+    	EXECUTE sql INTO existe;
+    	
+    	IF existe THEN
+				--Llama un Perform y selecciono el maximo valor de la columna indicada y tabla
+            	sql= 'SELECT MAX(' || columna || ') FROM ' || tabla;
+				EXECUTE sql INTO id;
+            	--Si el id es nulo, lo asigno 1 y lo retorno
+				IF id IS NULL THEN
+                    	id = 0;
+            	END IF;
+            	RETURN id+1;
+    	ELSE
+            	RAISE EXCEPTION 'Tabla o columna errónea: % | %', tabla, columna;
+    	END IF;
+END;
+$BODY$;
+
+
+
+CREATE OR REPLACE FUNCTION insertar_pago_cliente(cliente character varying, valor numeric, fecha date) RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      idpago integer;
+BEGIN
+	idpago = 0;
+	INSERT INTO pagos_clientes(id_cliente, valor_pago, fecha_pago) VALUES (cliente, valor, fecha)
+		RETURNING id_pago_cliente into idpago;
+	RETURN idpago;
+END;
+$BODY$;
+
+CREATE OR REPLACE FUNCTION insertar_baja_producto(
+	tipobaja character varying,
+	fechabaja date,
+	idproducto integer,
+	cantidadbaja integer,
+	precioproducto numeric) RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      idbaja integer;
+BEGIN
+	idbaja = 0;
+
+	INSERT INTO bajas_productos(
+		tipo_baja, fecha, id_producto, cantidad, precio)
+		VALUES (tipobaja, fechabaja, idproducto, cantidadbaja, precioproducto) 
+		RETURNING id_baja_producto into idbaja;
+	
+	-- en productos, sustraer la cantidad de baja, de la cantidad_disponible 
+	UPDATE productos SET cantidad_disponible = cantidad_disponible - cantidadbaja 
+		WHERE id_producto = idproducto;
+		
+	RETURN idbaja;
+END;
+$BODY$;
+
+Teniendo en cuanta que las transacciones de compras,ventas y devoluciones pueden fallar agregue el 
+manejo transaccional a dichas inserciones.

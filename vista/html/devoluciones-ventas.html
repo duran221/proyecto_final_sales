@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Devoluciones Ventas</title>
+    <script type="text/javascript" src="./vista/js/devoluciones-ventas.js"></script>
+</head>
+
+<body>
+    <section>
+        <div class="row teal lighten-5 center-align">
+            <div class="grid-example col s12"><span class="flow-text">Devoluciones De Ventas</span></div>
+        </div>
+
+        <div class="row col s12">
+
+            <div class="input-field col s3">
+                <input id="devolucion_venta-fecha" type="text" class="datepicker">
+                <label for="devolucion_venta-fecha" class="active">Fecha</label>
+            </div>
+
+            <div class="input-field col s3">
+                <input id="devolucion_venta-id" type="text" readonly>
+                <label for="devolucion_venta-id">Devolucion</label>
+            </div>
+
+            <div class="input-field col s3">
+                <select id="devolucion_venta-cliente"></select>
+                <label for="devolucion_venta-cliente">Cliente</label>
+            </div>
+
+            <div class="input-field col s3">
+                    <select id="devolucion_venta-venta"></select>
+                    <label for="devolucion_venta-venta">Venta</label>
+            </div>
+
+
+
+        </div>
+
+        <div id="tabla-devoluciones-ventas"></div>
+            <br>
+            <div class="blue-grey lighten-2 center">
+        </div>
+
+        <nav class="nav-wrapper grey lighten-1">
+                <ul class="righ">
+                    <li><a id="devolucion_venta-cancelar" class="waves-effect waves-light btn">Cancelar Devolución <i class="material-icons right">clear</i></a></li>
+                    <li><a id="devolucion_venta-registrar" class="waves-effect waves-light btn red">Registrar Devolución <i class="material-icons right">send</i></a></li>
+                </ul>
+        </nav>
+
+    </section>
+
+</body>
+
+</html>

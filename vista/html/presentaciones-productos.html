@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Gestione las Presentaciones de sus productos</title>
+    <script src="./vista/js/presentaciones_productos.js"></script>
+</head>
+
+<body>
+    <nav>
+        <div class="nav-wrapper blue lighten-2">
+            <a class="brand-logo white-text center">&nbsp;Gestiones las Presentaciones</a>
+            <ul class="left">
+                <li id="presentaciones-btnagregar"><a class="btn-flat modal-trigger red" data-target="presentaciones-frmedicion"><i class="material-icons">add</i></a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- especificaciones de un cuadro modal -->
+    <div id="presentaciones-frmedicion" class="modal">
+        <div class="modal-content">
+            <h5 id="presentaciones-titulo" class="teal-text center">Datos de Presentaciones</h5>
+            <div class="section">
+                <!-- se fuerza una espacio vertical -->
+            </div>
+
+            <div class="container">
+                <div class="row">
+                    <div class="input-field col s6">
+                        <input class="validate" type="text" name="presentaciones-txtid" id="presentaciones-txtid" hidden/>
+                        <label for="presentaciones-txtid" hidden>Identificación de Presentaciones</label>
+                    </div>
+
+                </div>
+
+                <div class="row">
+                    <div class="input-field col s12">
+                        <input class="validate" type="text" name="presentaciones-txtdescripcion" id="presentaciones-txtdescripcion" required/>
+                        <label for="presentaciones-txtdescripcion">Nombre Categoría</label>
+                    </div>
+                </div>
+
+                <div class="row center">
+                    <a id="presentaciones-btncancelar" class="waves-effect waves-light btn-small"><i class="material-icons left">clear</i>Cancelar</a>
+                    <a id="presentaciones-btnaceptar" class="waves-effect waves-light btn-small"><i class="material-icons left">check</i>Aceptar</a>
+                </div>
+
+            </div>
+            <!-- hasta aquí el formulario de autenticación -->
+        </div>
+        <!-- hasta aquí las especificaciones de un cuadro modal -->
+    </div>
+
+    <div id="tabla-presentaciones"></div>
+    <br>
+    <div class="blue-grey lighten-2 center">
+        <p>Organice las distintas presentaciones para sus productos</p>
+    </div>
+</body>
+
+</html>

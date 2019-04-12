@@ -1,0 +1,27 @@
+/* las siguientes instrucciones se requieren para fijar el pie de página en la parte inferior */
+
+body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+.modal {
+    /*
+      Inicialmente se probarón los formularios con este estilo:
+        max-height: 100% !important;
+        overflow-y: hidden !important;
+      pero no funcionó muy bien que digamos...
+      Se intenta el siguiente cambio para ver resultados
+    */
+    height: auto !important;
+    max-height: calc(100vh - 100px) !important;
+}
+
+.sidenav{
+  width:30%;
+}

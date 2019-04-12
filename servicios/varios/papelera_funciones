@@ -1,0 +1,33 @@
+
+CREATE OR REPLACE FUNCTION id_siguiente_venta()
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      idventa integer;
+BEGIN
+	SELECT MAX(id_venta) INTO idventa FROM ventas;
+	IF idventa IS NULL THEN
+		idventa = 1;
+	END IF;
+	
+	RETURN idventa;
+END;
+$BODY$;
+
+
+CREATE OR REPLACE FUNCTION id_siguiente_compra()
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      idcompra integer;
+BEGIN
+	SELECT MAX(id_compra) INTO idcompra FROM compras;
+	IF idcompra IS NULL THEN
+		idcompra = 1;
+	END IF;
+	
+	RETURN idcompra;
+END;
+$BODY$;
