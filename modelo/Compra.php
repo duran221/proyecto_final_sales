@@ -1,5 +1,7 @@
 <?php
 
+//Tumaco faltón....
+
 class Compra implements Persistible{
 
     public function idSiguienteCompra($param) {
