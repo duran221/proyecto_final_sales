@@ -112,9 +112,9 @@ class Cliente implements Persistible{
     public function listar($param) {
         extract($param);
         $sql="";
-        error_log($data);
+        error_log($opcion);
 
-        if($data==1){
+        if($opcion==1){
             $sql = "SELECT id_cliente, nombre, telefonos, direccion, con_credito
                     FROM clientes
                     ORDER BY nombre";    
@@ -123,9 +123,6 @@ class Cliente implements Persistible{
                     FROM clientes cl JOIN ventas ven ON cl.ID_CLIENTE=ven.ID_CLIENTE
                     ORDER BY nombre";    
         }
-
-
-        
         // se ejecuta la instrucción SQL, para obtener el conjunto de resultados (si los hay) como un objeto PDOStatement
         if ($stmt = $conexion->pdo->query($sql, PDO::FETCH_OBJ)) {
             // se obtiene el array de objetos con las posibles filas obtenidas

@@ -1,19 +1,19 @@
 'use strict';
 
 // se crea un nuevo objeto anónimo a partir de una clase anónima
-// dicho objeto define la gestión de pagos de clientes, utilizando el componente 'Tabulator' (http://tabulator.info/)
+// dicho objeto define la gestión de pagos a proveedores, utilizando el componente 'Tabulator' (http://tabulator.info/)
 
-new class PagoCliente {
+new class PagoProveedor {
 
     constructor() {
 
-        M.Datepicker.init($('#pago_cliente-fecha'), {
+        M.Datepicker.init($('#pago_proveedor-fecha'), {
             format: 'yyyy-mm-dd',
             i18n: util.datePickerES,
             defaultDate: new Date()
         });
 
-        $('#pago_cliente-fecha').value = moment(new Date()).format('YYYY-MM-DD'); // <-- uno de los usos de moment.js
+        $('#pago_proveedor-fecha').value = moment(new Date()).format('YYYY-MM-DD'); // <-- uno de los usos de moment.js
 
         this.tablaCreditos;
         this.tablaPagos;
@@ -21,34 +21,34 @@ new class PagoCliente {
     }
 
     /**
-     * Solicita al back-end el listado de clientes. Si éstos se reciben, entonces se consulta qué número de pago
-     * sigue y se crean las tablas que muestran los créditos y los pagos de un cliente.
+     * Solicita al back-end el listado de proveedores. Si éstos se reciben, entonces se consulta qué número de pago
+     * sigue y se crean las tablas que muestran los créditos y los pagos de un proveedor.
      * También se asignan los eventos a los elementos del formulario.
      */
     inicializar() {
-        util.cargarLista({ // solicitar al back-end los elementos de la lista desplegable de clientes
-            clase: 'Cliente',
+        util.cargarLista({ // solicitar al back-end los elementos de la lista desplegable de proveedores
+            clase: 'Proveedor',
             accion: 'listar',
-            listaSeleccionable: '#pago_cliente-cliente',
-            clave: 'id_cliente',
+            listaSeleccionable: '#pago_proveedor-proveedor',
+            clave: 'id_proveedor',
             valor: 'nombre',
-            primerItem: 'Seleccione el cliente que va a pagar',
-            opcion:2 //liste solo los clientes con ventas.
+            primerItem: 'Seleccione el proveedor al que va a pagar',
+            opcion:1 //Filtre solo los proveedores con alguna compra
         }).then(() => {
-            $('#pago_cliente-cliente').value = '';
-            M.FormSelect.init($('#pago_cliente-cliente'));
-            util.siguiente('pagos_clientes', 'id_pago_cliente').then(data => {
+            $('#pago_proveedor-proveedor').value = '';
+            M.FormSelect.init($('#pago_proveedor-proveedor'));
+            util.siguiente('pagos_proveedores', 'id_pago_proveedor').then(data => {
                 if (data.ok) {
-                    $('#pago_cliente-id').value = data.siguiente;
+                    $('#pago_proveedor-id').value = data.siguiente;
                     M.updateTextFields();
                     this.crearTablaCreditos();
                     this.crearTablaPagos();
                     this.gestionarEventos();
                 } else {
-                    throw new Error(data.mensaje, 'No se pudo determinar el siguiente ID de pagos de clientes');
+                    throw new Error(data.mensaje, 'No se pudo determinar el siguiente ID de pagos de proveedores');
                 }
             }).catch(error => {
-                util.mensaje(error, 'ID de pagos de clientes indeterminado');
+                util.mensaje(error, 'ID de pagos de proveedores indeterminado');
             });
         }).catch(error => {
             util.mensaje(error);
@@ -67,7 +67,7 @@ new class PagoCliente {
             }
         }).then(data => {
             if (data.ok) {
-                $('#pago_cliente-id').value = data.id;
+                $('#pago_proveedor-id').value = data.id;
                 M.updateTextFields();
             } else {
                 throw new Error(data.mensaje);
@@ -79,7 +79,7 @@ new class PagoCliente {
 
     /**
      * Crea una tabla en la que se muestran las posibles fechas y valores
-     * de los créditos de un cliente.
+     * de los créditos a un proveedor.
      */
     crearTablaCreditos() {
         console.log('cargando créditos');
@@ -88,9 +88,9 @@ new class PagoCliente {
             height: "200px",
             ajaxURL: util.URL_APP,
             ajaxParams: { // parámetros que se envían al servidor para mostrar la tabla
-                clase: 'Venta',
+                clase: 'Compra',
                 accion: 'seleccionar',
-                cliente: $('#pago_cliente-cliente').value
+                proveedor: $('#pago_proveedor-proveedor').value
             },
             ajaxConfig: 'POST', // tipo de solicitud HTTP ajax
             ajaxContentType: 'json', // enviar parámetros al servidor como una cadena JSON
@@ -104,7 +104,7 @@ new class PagoCliente {
             movableColumns: true, // permitir cambiar el orden de las columnas
             resizableRows: true, // permitir cambiar el orden de las filas
             columns: [
-                { title: "Fecha", field: "fecha_venta", align: "center" },
+                { title: "Fecha", field: "fecha_compra", align: "center" },
                 { title: "Valor", field: "total_credito", align: "right", bottomCalc: "sum" }
             ],
             // addRowPos: 'top', // no se usa aquí. Aquí se usa un formulario de edición personalizado
@@ -116,7 +116,7 @@ new class PagoCliente {
 
     /**
      * Crea una tabla en la que se muestran las posibles fechas y valores
-     * de los abonos o pagos realizados por un cliente.
+     * de los abonos o pagos realizados por un proveedor.
      */
     crearTablaPagos() {
         console.log('cargando pagos');
@@ -124,9 +124,9 @@ new class PagoCliente {
             height: "200px",
             ajaxURL: util.URL_APP,
             ajaxParams: { // parámetros que se envían al servidor para mostrar la tabla
-                clase: 'PagoCliente',
+                clase: 'PagoProveedor',
                 accion: 'seleccionar',
-                cliente: $('#pago_cliente-cliente').value
+                proveedor: $('#pago_proveedor-proveedor').value
             },
             ajaxConfig: 'POST', // tipo de solicitud HTTP ajax
             ajaxContentType: 'json', // enviar parámetros al servidor como una cadena JSON
@@ -152,7 +152,7 @@ new class PagoCliente {
 
     /**
      * Asigna acciones a los elementos del formulario de la siguiente manera:
-     * - lista de clientes: actualiza las listas de créditos y pagos y del saldo adeudado.
+     * - lista de proveedores: actualiza las listas de créditos y pagos y del saldo adeudado.
      * - Entrada de abonos: actualiza el saldo adeudado.
      * - Botón registrar abono:  intenta registrar en la base de datos el abono actual y si la 
      *   transacción tiene éxito, agrega una línea con el abono actual a la tabla de abonos.
@@ -162,18 +162,18 @@ new class PagoCliente {
         let tablaCreditos = this.tablaCreditos;
         let abonoActual = 0;
 
-        $('#pago_cliente-cliente').addEventListener('change', event => {
-            // mostrar la lista de créditos de cliente actual
+        $('#pago_proveedor-proveedor').addEventListener('change', event => {
+            // mostrar la lista de créditos del proveedor actual
             tablaCreditos.setData(util.URL_APP, {
-                clase: 'Venta',
+                clase: 'Compra',
                 accion: 'seleccionar',
-                cliente: $('#pago_cliente-cliente').value
+                proveedor: $('#pago_proveedor-proveedor').value
             }).then(() => {
-                // mostrar la lista de pagos del cliente actual
+                // mostrar la lista de pagos del proveedor actual
                 tablaPagos.setData(util.URL_APP, {
-                    clase: 'PagoCliente',
+                    clase: 'PagoProveedor',
                     accion: 'seleccionar',
-                    cliente: $('#pago_cliente-cliente').value
+                    proveedor: $('#pago_proveedor-proveedor').value
                 }).then(() => {
                     calcularSaldo();
                 }).catch((error) => {
@@ -184,22 +184,22 @@ new class PagoCliente {
             });
         });
 
-        $('#pago_cliente-abono').addEventListener('input', event => {
+        $('#pago_proveedor-abono').addEventListener('input', event => {
             calcularSaldo();
         });
 
-        $('#pago_cliente-registrar').addEventListener('click', event => {
+        $('#pago_proveedor-registrar').addEventListener('click', event => {
             // si se ingresó un abono, intentar registrarlo en la base de datos
             if (abonoActual > 0) {
                 let pago = {
-                    cliente: $('#pago_cliente-cliente').value,
+                    proveedor: $('#pago_proveedor-proveedor').value,
                     valor: abonoActual,
-                    fecha: $('#pago_cliente-fecha').value
+                    fecha: $('#pago_proveedor-fecha').value
                 }
                 util.fetchData(util.URL_APP, {
                     'method': 'POST',
                     'body': {
-                        clase: 'PagoCliente',
+                        clase: 'PagoProveedor',
                         accion: 'insertar',
                         pago: pago
                     }
@@ -208,20 +208,20 @@ new class PagoCliente {
                     if (data.ok) {
                         // mostrar en la tabla de abonos, el nuevo abono
                         tablaPagos.addRow({
-                            fecha_pago: $('#pago_cliente-fecha').value,
+                            fecha_pago: $('#pago_proveedor-fecha').value,
                             valor_pago: abonoActual
                         }, false);
                         // se dispone el formulario para un nuevo abono
-                        $('#pago_cliente-id').value = data.id_pago;
+                        $('#pago_proveedor-id').value = data.id_pago;
                         M.toast({ html: `Pago éxitoso. Seguimos con el N° ${data.id_pago}` });
-                        $('#pago_cliente-abono').value = '';
-                        $('#pago_cliente-cliente').selectedIndex = 0;
-                        M.FormSelect.init($('#pago_cliente-cliente'));
+                        $('#pago_proveedor-abono').value = '';
+                        $('#pago_proveedor-proveedor').selectedIndex = 0;
+                        M.FormSelect.init($('#pago_proveedor-proveedor'));
                     } else {
                         throw new Error(data.mensaje);
                     }
                 }).catch(error => {
-                    util.mensaje(error, 'Fallo al intentar registrar el pago del cliente');
+                    util.mensaje(error, 'Fallo al intentar registrar el pago del proveedor');
                 });
             } else {
                 M.toast({ html: 'Falta el valor para el abono actual' });
@@ -231,8 +231,8 @@ new class PagoCliente {
         let calcularSaldo = () => {
             let totalCredito = tablaCreditos.getCalcResults().bottom.total_credito;
             let totalAbonos = tablaPagos.getCalcResults().bottom.valor_pago;
-            abonoActual = util.esNumero($('#pago_cliente-abono').value) ? Number($('#pago_cliente-abono').value) : 0;
-            $('#pago_cliente-saldo').value = totalCredito - totalAbonos - abonoActual;
+            abonoActual = util.esNumero($('#pago_proveedor-abono').value) ? Number($('#pago_proveedor-abono').value) : 0;
+            $('#pago_proveedor-saldo').value = totalCredito - totalAbonos - abonoActual;
             M.updateTextFields();
         }
 

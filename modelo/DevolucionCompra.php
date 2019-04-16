@@ -23,7 +23,7 @@ class DevolucionCompra implements Persistible{
             if ($instruccion->execute()) {
                 $fila = $instruccion->fetch(PDO::FETCH_ASSOC); // si la inserción fue exitosa, recuperar el ID retornado
                 $info = $conexion->errorInfo($instruccion, FALSE);
-                $info['id_devolucion_compra'] = $fila['insertar_devolucion_compra']; // agregar el nuevo ID a la info que se envía al front-end
+                $info['id_devolucion'] = $fila['insertar_devolucion_compra']; // agregar el nuevo ID a la info que se envía al front-end
                 //Si el que retorna 'insertar_compra' es mayor a cero, lo asigna
                 $info['ok'] = $fila['insertar_devolucion_compra'] > 0;
                 //Envia los datos a fronted

@@ -66,34 +66,52 @@ class Conexion {
         }
     }
 
-    public function siguiente($param){
-        
+    public function siguiente($param) {
         extract($param);
-        $sql= "SELECT * FROM siguiente(:tabla,:columna)";
 
-        //Preparando la consulta para su ejecución:
-        $instruccion= $this->pdo->prepare($sql);
+        $sql = "SELECT * FROM maximo(:tabla, :campo)";
+        $instruccion = $conexion->pdo->prepare($sql);
 
-        //Si no hay errores:
-        if($instruccion){
-            //Asocio los parametros que recibí desde el fronted:
-            $instruccion->bindParam(':tabla',$data['nombre_tabla']);
-            $instruccion->bindParam(':columna',$data['colum']);
-
-            //Si la ejecución ha sido realizada con éxito:
-            if($instruccion->execute()){
-                $fila = $instruccion->fetch(PDO::FETCH_ASSOC); // si la inserción fue exitosa, recuperar el ID retornado
-                $info = $this->errorInfo($instruccion, FALSE);
-
-                $info['colum']=$fila['siguiente'];
-                $info['ok'] = $fila['siguiente'];
+        if ($instruccion) {
+            if ($instruccion->execute(['tabla' => "$tabla", 'campo' => "$campo"])) {
+                $fila = $instruccion->fetch(PDO::FETCH_ASSOC);
+                $info = $conexion->errorInfo($instruccion, FALSE);
+                $info['siguiente'] = $fila['maximo'] + 1;
+                $info['ok'] = $info['siguiente'] > 0;
                 echo json_encode($info);
-
-
+            } else {
+                echo $conexion->errorInfo($instruccion);
             }
+        } else {
+            echo json_encode(['ok' => FALSE, 'mensaje' => 'Fallo al determinar el consecutivo']);
+        }
+    }
+
+    /**
+     * Verificar que sea un humano el que está accediendo al sistema
+     */
+    public static function validarCaptcha($param) {
+        $token = TRUE;
+        extract($param);
+
+        if (!$token) {
+            $ok = FALSE;
         }
 
+        $respuesta = file_get_contents('https://www.google.com/recaptcha/api/siteverify?secret=' . CLAVE_RECAPTCHA . "&response=$token");
+        $respuesta = json_decode($respuesta, true);
+        $ok = (intval($respuesta["success"]) !== 1) ? FALSE : TRUE;
 
+        echo json_encode(["ok" => $ok, "token" => $token, "respuesta" => $respuesta]);
     }
+
+    /*
+        Para corregir el error: failed loading cafile stream: `C:\xampp\apache\bin\curl-ca-bundle.crt':
+        Descargué curl-7.64.0_3-win64-mingw.zip de https://curl.haxx.se/windows/
+        Descomprimí y
+        Copie de ./curl-7.64.0-win64-mingw/bin el archivo a C:/xampp/apache/bin
+        Y listo
+        clave 123 = $2y$10$CqVjREFhgCa..y/uXfC.e.AepkmA/TD94CefP80Gq4TcLhWPyUeUu
+ */
 
 }

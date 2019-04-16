@@ -5,55 +5,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Devoluciones Compras</title>
+    <title>Devoluciones de compras</title>
     <script type="text/javascript" src="./vista/js/devoluciones-compras.js"></script>
 </head>
 
 <body>
-    <section>
-        <div class="row teal lighten-5 center-align">
-            <div class="grid-example col s12"><span class="flow-text">Devoluciones De Compras</span></div>
+
+    <div class="card-panel">
+        <div class="row blue-grey white-text lighten-2 center-align">
+            <div class="grid-example col s12">
+                <h5>Devoluciones de compras</h5>
+            </div>
         </div>
 
-        <div class="row col s12">
-
-            <div class="input-field col s3">
+        <div class="row">
+            <div class="input-field col s2">
                 <input id="devolucion_compra-fecha" type="text" class="datepicker">
                 <label for="devolucion_compra-fecha" class="active">Fecha</label>
             </div>
-
-            <div class="input-field col s3">
-                <input id="devolucion_compra-id" type="text" readonly>
-                <label for="devolucion_compra-id">Devolucion</label>
+            <div class="input-field col s2">
+                <input id="devolucion_compra-numero" type="text" class="active" readonly>
+                <label for="devolucion_compra-numero" class="active">Devolución</label>
             </div>
-
-            <div class="input-field col s3">
+            <div class="input-field col s4">
                 <select id="devolucion_compra-proveedor"></select>
                 <label for="devolucion_compra-proveedor">Proveedor</label>
             </div>
-
-            <div class="input-field col s3">
-                    <select id="devolucion_compra-compra"></select>
-                    <label for="devolucion_compra-compra">Compra</label>
+            <div class="input-field col s4">
+                <select id="devolucion_compra-datos_compra">
+                    <option value="" disabled selected>Sin elementos</option>
+                </select>
+                <label for="devolucion_compra-datos_compra">Compra</label>
             </div>
-
-
-
         </div>
 
-        <div id="tabla-devoluciones-compras"></div>
-            <br>
-            <div class="blue-grey lighten-2 center">
+        <div class="row teal teal-text lighten-5">
+            <div id="devolucion_compra-info" class="grid-example col s12"><b>Detalle de la compra</b></div>
+            <div id="devolucion_compra-tabla"></div>
         </div>
 
-        <nav class="nav-wrapper grey lighten-1">
-                <ul class="righ">
-                    <li><a id="devolucion_compra-cancelar" class="waves-effect waves-light btn">Cancelar Devolución <i class="material-icons right">clear</i></a></li>
-                    <li><a id="devolucion_compra-registrar" class="waves-effect waves-light btn red">Registrar Devolución <i class="material-icons right">send</i></a></li>
-                </ul>
+        <nav class="nav-wrapper grey lighten-2">
+            <ul class="center">
+                <li><a id="devolucion_compra-cancelar" class="waves-effect waves-light btn">Cancelar devolución <i class="material-icons center">clear</i></a></li>
+                <li><a id="devolucion_compra-registrar" class="waves-effect waves-light red btn">Registrar devolución <i class="material-icons center">send</i></a></li>
+            </ul>
         </nav>
+    </div>
 
-    </section>
+    <div class="row">
+        Importante: si la compra ha tenido devoluciones previas, la primera columna muestra la diferencia entre lo comprado y lo devuelto previamente.
+    </div>
 
 </body>
 

@@ -1,4 +1,4 @@
-/* Tabulator v4.2.2 (c) Oliver Folkerd */
+/* Tabulator v4.2.5 (c) Oliver Folkerd */
 
 'use strict';
 
@@ -220,19 +220,24 @@ ColumnManager.prototype.getHeadersElement = function () {
 	return this.headersElement;
 };
 
-//scroll horizontally to match table body
-
-ColumnManager.prototype.scrollHorizontal = function (left) {
+ColumnManager.prototype.tempScrollBlock = function () {
 	var _this = this;
-
-	var hozAdjust = 0,
-	    scrollWidth = this.element.scrollWidth - this.table.element.clientWidth;
 
 	clearTimeout(this.blockHozScrollEvent);
 
 	this.blockHozScrollEvent = setTimeout(function () {
 		_this.blockHozScrollEvent = false;
-	}, 10);
+	}, 50);
+};
+
+//scroll horizontally to match table body
+
+ColumnManager.prototype.scrollHorizontal = function (left) {
+
+	var hozAdjust = 0,
+	    scrollWidth = this.element.scrollWidth - this.table.element.clientWidth;
+
+	this.tempScrollBlock();
 
 	this.element.scrollLeft = left;
 
@@ -2385,11 +2390,7 @@ RowManager.prototype._setDataActual = function (data, renderInPosition) {
 
 	self.table.options.dataLoading.call(this.table, data);
 
-	self.rows.forEach(function (row) {
-		row.wipe();
-	});
-
-	self.rows = [];
+	this._wipeElements();
 
 	if (this.table.options.history && this.table.modExists("history")) {
 		this.table.modules.history.clear();
@@ -2420,6 +2421,18 @@ RowManager.prototype._setDataActual = function (data, renderInPosition) {
 	} else {
 		console.error("Data Loading Error - Unable to process data due to invalid data type \nExpecting: array \nReceived: ", typeof data === 'undefined' ? 'undefined' : _typeof(data), "\nData:     ", data);
 	}
+};
+
+RowManager.prototype._wipeElements = function () {
+	this.rows.forEach(function (row) {
+		row.wipe();
+	});
+
+	if (this.table.options.groupBy && this.table.modExists("groupRows")) {
+		this.table.modules.groupRows.wipe();
+	}
+
+	this.rows = [];
 };
 
 RowManager.prototype.deleteRow = function (row, blockRedraw) {
@@ -3354,14 +3367,13 @@ RowManager.prototype._virtualRenderFill = function (position, forceMove, offset)
 	if (!position) {
 		self._clearVirtualDom();
 	} else {
-		// element.children().detach();
 		while (element.firstChild) {
 			element.removeChild(element.firstChild);
 		} //check if position is too close to bottom of table
-		var heightOccpied = (self.displayRowsCount - position + 1) * self.vDomRowHeight;
+		var heightOccupied = (self.displayRowsCount - position + 1) * self.vDomRowHeight;
 
-		if (heightOccpied < self.height) {
-			position -= Math.ceil((self.height - heightOccpied) / self.vDomRowHeight);
+		if (heightOccupied < self.height) {
+			position -= Math.ceil((self.height - heightOccupied) / self.vDomRowHeight);
 
 			if (position < 0) {
 				position = 0;
@@ -4440,7 +4452,6 @@ Row.prototype.delete = function () {
 };
 
 Row.prototype.deleteActual = function (blockRedraw) {
-
 	var index = this.table.rowManager.getRowIndex(this);
 
 	//deselect row if it is selected
@@ -4453,8 +4464,13 @@ Row.prototype.deleteActual = function (blockRedraw) {
 	// }
 
 	//remove any reactive data watchers from row object
-	if (this.table.options.reactiveData && this.table.modExists("reactiveData", true)) {
-		this.table.modules.reactiveData.unwatchRow(this);
+	if (this.table.options.reactiveData && this.table.modExists("reactiveData", true)) {}
+	// this.table.modules.reactiveData.unwatchRow(this);
+
+
+	//remove from group
+	if (this.modules.group) {
+		this.modules.group.removeRow(this);
 	}
 
 	this.table.rowManager.deleteRow(this, blockRedraw);
@@ -4463,11 +4479,6 @@ Row.prototype.deleteActual = function (blockRedraw) {
 
 	this.initialized = false;
 	this.heightInitialized = false;
-
-	//remove from group
-	if (this.modules.group) {
-		this.modules.group.removeRow(this);
-	}
 
 	//recalc column calculations if present
 	if (this.table.modExists("columnCalcs")) {
@@ -4490,14 +4501,11 @@ Row.prototype.deleteCells = function () {
 Row.prototype.wipe = function () {
 	this.deleteCells();
 
-	// this.element.children().each(function(){
-	// 	$(this).remove();
-	// })
-	// this.element.empty();
-
 	while (this.element.firstChild) {
 		this.element.removeChild(this.element.firstChild);
-	} // this.element.remove();
+	}this.element = false;
+	this.modules = {};
+
 	if (this.element.parentNode) {
 		this.element.parentNode.removeChild(this.element);
 	}
@@ -5103,8 +5111,10 @@ Cell.prototype.cancelEdit = function () {
 
 Cell.prototype.delete = function () {
 	this.element.parentNode.removeChild(this.element);
+	this.element = false;
 	this.column.deleteCell(this);
 	this.row.deleteCell(this);
+	this.calcs = {};
 };
 
 //////////////// Navigation /////////////////
@@ -5408,6 +5418,7 @@ Tabulator.prototype.defaultOptions = {
 	langs: {},
 
 	virtualDom: true, //enable DOM virtualization
+	virtualDomBuffer: 0, // set virtual DOM buffer size
 
 	persistentLayout: false, //store column layout in memory
 	persistentSort: false, //store sorting in memory

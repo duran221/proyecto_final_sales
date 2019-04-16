@@ -1,14 +1,17 @@
 'use strict';
 
 var verLog = true;
+let captcha = true; // si se coloca en true hace validación de captcha
 
-export const usuario = {
-    id: '',
-    nombre: '',
-    perfil: ''
-};
+export let usuario = {}; // se llena con los datos del usuario autenticado
+export const URL_APP = './controlador/fachada.php';
 
-export const URL = './controlador/fachada.php';
+export let setUsuario = usuario => {
+    util.usuario.id_persona = usuario.id_persona;
+    util.usuario.nombre = usuario.nombre;
+    util.usuario.perfil = usuario.perfil;
+}
+
 /**
  * Muestra un mensaje de error por consola y al usuario
  * @param {String} mensajeLog el mensaje que aparece por consola
@@ -21,13 +24,7 @@ export const mensaje = (mensajeLog, mensajeUsuario = mensajeLog, clasesCSS = 're
     if (depurar && mensajeLog) {
         console.error(mensajeLog);
     }
-    if (mensajeUsuario !== mensajeLog) {
-        let pos = mensajeLog.indexOf('DETAIL:');
-        if (pos > -1) {
-            mensajeLog = mensajeLog.substr(pos + 8);
-            mensajeUsuario = `${mensajeUsuario}<br>${mensajeLog}`;
-        }
-    }
+
     M.toast({
         html: mensajeUsuario,
         classes: clasesCSS
@@ -62,59 +59,21 @@ export let gestionarOpciones = (opciones, opcion) => {
     }
 }
 
-export async function siguiente(tabla,columna,selector){
-
-    let insercion = {
-        nombre_tabla:tabla,
-        colum:columna,
-    };
-
-    // se envían los datos del nuevo personal al back-end y se nuestra la nueva fila en la tabla
-    return this.fetchData('./controlador/fachada.php', {
-        'method': 'POST',
-        'body': {
-            clase: 'Conexion',
-            accion: 'siguiente',
-            data: insercion,
-        }
-    });
-
+/**
+ * Verifica si el string dado como argumento forma parte de la URL de un script cargado.
+ * @param {String} strURL la URL del script que se quiere comprobar
+ * Importante: como no requiere dar la ruta completa, tenga cuidado...
+ * @returns {url} Si la URL existe devuelve un objeto de tipo URL
+ */
+export function existeScript(strURL) {
+    let scripts = Array.from(document.querySelectorAll('script')).map(script => script.src);
+    let script = scripts.find(a => a.includes(strURL));
+    let url;
+    if (script) {
+        url = new URL(script);
+    }
+    return url;
 }
-
-/* 
-export async function siguiente(tabla,columna,selector){
-
-    let insercion = {
-        nombre_tabla:tabla,
-        colum:columna,
-    };
-
-    // se envían los datos del nuevo personal al back-end y se nuestra la nueva fila en la tabla
-    return this.fetchData('./controlador/fachada.php', {
-        'method': 'POST',
-        'body': {
-            clase: 'Conexion',
-            accion: 'siguiente',
-            data: insercion,
-        }
-    }).then(data => {
-        if (data.ok) {
-            if($(selector)){
-                $(selector).value =data.colum;
-                M.updateTextFields();
-            }
-            
-            
-        } else {
-            throw new Error(data.mensaje);
-        }
-    }).catch(error => {
-        util.mensaje(error, 'Ha ocurrido un error');
-    }); 
-
-
-
-}*/
 
 /**
  * permite obtener una promesa con recursos de forma asíncrona por el canal HTTP
@@ -153,17 +112,16 @@ export async function fetchData(url, data = {}) {
  * @param {String} valor Nombre de la propiedad de los objetos que se mostrará en la lista
  */
 export let crearLista = (listaSeleccionable, elementos, clave, valor, primerItem = false) => {
-
-    if (elementos.length === 0) {
-        throw new Error('Fallo al crear la lista. No existen elementos.');
-    }
-
     let select = $(listaSeleccionable);
     select.innerHTML = '';
     let opciones;
 
     if (primerItem) {
-        opciones = `<option value="" disabled selected>${primerItem}</option>`;
+        if (elementos.length === 0) {
+            opciones = `<option value="" disabled selected>Sin elementos</option>`;
+        } else {
+            opciones = `<option value="" disabled selected>${primerItem}</option>`;
+        }
     }
 
     elementos.forEach((item) => {
@@ -185,17 +143,29 @@ export let crearLista = (listaSeleccionable, elementos, clave, valor, primerItem
  *  primerItem: opcionalmente un elemento que se agrega al inicio de la lista
  */
 export let cargarLista = opciones => {
-    return util.fetchData('./controlador/fachada.php', {
-        'body': {
-            'clase': opciones.clase,
-            'accion': opciones.accion,
-            data:opciones.info,
-        }
+    return util.fetchData(util.URL_APP, {
+        'body': opciones
     }).then(data => {
         if (data.ok) {
             crearLista(opciones.listaSeleccionable, data.lista, opciones.clave, opciones.valor, opciones.primerItem);
+            return data.lista.length;
         } else {
             throw new Error(data.mensaje);
+        }
+    });
+}
+
+/**
+ * Si la solicitud al back-end tiene éxito, devuelve una promesa con el siguiente ID de una tabla determinada
+ */
+export let siguiente = (tabla, campo) => {
+    return util.fetchData(util.URL_APP, { // determinar el ID de la siguiente venta
+        'method': 'POST',
+        'body': {
+            clase: 'Conexion',
+            accion: 'siguiente',
+            tabla: tabla,
+            campo: campo
         }
     });
 }
@@ -246,3 +216,53 @@ export let tabulatorES = {
  * @param {String} n Un dato que puede corresponder a un valor o no. 
  */
 export let esNumero = n => !isNaN(parseFloat(n)) && isFinite(n);
+
+export let validarCaptcha = () => {
+    if (captcha) {
+        grecaptcha.ready(() => {
+            // se obtiene el objeto URL del script captcha que se debió incluir en el index.html de la aplicación
+            let objURLCaptcha = util.existeScript('www.google.com/recaptcha/api.js');
+            if (objURLCaptcha) {
+                // si se pudo referenciar la URL de reCaptcha se utiliza enseguida el parámetro 'render' de dicha URL
+                // como primer argumento de la siguiente solicitud de verificación
+                try {
+                    grecaptcha.execute(objURLCaptcha.searchParams.get('render'), {
+                        action: 'login'
+                    }).then((token) => {
+                        fetchData(util.URL_APP, {
+                            'method': 'POST',
+                            'body': {
+                                'clase': 'Conexion',
+                                'accion': 'validarCaptcha',
+                                'token': token
+                            }
+                        }).then(data => {
+                            if (data.respuesta.success) {
+                                console.log('captcha correcto');
+                                document.querySelector('#login_btnautenticar').className = 'col s12 btn btn-large waves-effect red';
+                            } else {
+                                throw 'Falló la verificación reCaptcha del lado del servidor';
+                            }
+                        }).catch(error => {
+                            mensaje(error, 'No se pudo comprobar que el usuario sea humano');
+                        });
+                    });
+                } catch (e) {
+                    mensaje(e, 'No se pudo comprobar que el usuario sea humano');
+                }
+            }
+        });
+    } else {
+        document.querySelector('#login_btnautenticar').className = 'col s12 btn btn-large waves-effect teal';
+    }
+}
+
+/**
+ * Busca en una lista de productos uno a partir de su ID y si lo encuentra lo retorna, si no, retorna undefined.
+ * @param {String} descripcionProducto Un dato string con la forma ID-Descripción
+ * @param {Array} listaProductos Un array que contiene objetos de productos
+ */
+export let buscarProducto = (descripcionProducto, listaProductos) => {
+    const idProducto = descripcionProducto.split('-')[0];
+    return listaProductos.lista_completa.find(obj => obj.id_producto == idProducto);
+}

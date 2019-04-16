@@ -5,31 +5,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Pagos de clientes</title>
-    <script type="text/javascript" src="./vista/js/pagos-clientes.js"></script>
+    <title>Pagos a proveedores</title>
+    <script type="text/javascript" src="./vista/js/pagos-proveedores.js"></script>
 </head>
 
 <body>
     <section>
         <div class="row blue-grey lighten-2 center-align">
-            <div class="grid-example col s12"><span class="flow-text white-text">Pagos de clientes</span></div>
+            <div class="grid-example col s12"><span class="flow-text white-text">Pagos a proveedores</span></div>
         </div>
 
         <div class="row col s12">
 
             <div class="input-field col s2">
-                <input id="pago_cliente-id" type="text" readonly>
-                <label for="pago_cliente-id">ID Pago</label>
+                <input id="pago_proveedor-id" type="text" readonly>
+                <label for="pago_proveedor-id">ID Pago</label>
             </div>
 
             <div class="input-field col s7">
-                <select id="pago_cliente-cliente"></select>
-                <label for="pago_cliente-cliente">Cliente</label>
+                <select id="pago_proveedor-proveedor"></select>
+                <label for="pago_proveedor-proveedor">Proveedor</label>
             </div>
 
             <div class="input-field col s3">
-                <input id="pago_cliente-fecha" type="text" class="datepicker">
-                <label for="pago_cliente-fecha" class="active">Fecha</label>
+                <input id="pago_proveedor-fecha" type="text" class="datepicker">
+                <label for="pago_proveedor-fecha" class="active">Fecha</label>
             </div>
 
         </div>
@@ -47,18 +47,18 @@
 
         <div class="row">
             <div class="input-field col s4">
-                <input id="pago_cliente-abono" type="text">
-                <label for="pago_cliente-abono">Abono actual</label>
+                <input id="pago_proveedor-abono" type="text">
+                <label for="pago_proveedor-abono">Abono actual</label>
             </div>
 
             <div class="input-field col s4">
-                <input id="pago_cliente-saldo" type="text" readonly>
-                <label for="pago_cliente-saldo">Saldo</label>
+                <input id="pago_proveedor-saldo" type="text" readonly>
+                <label for="pago_proveedor-saldo">Saldo</label>
             </div>
 
             <div class="col s4 right-align">
                 <br>
-                <a id="pago_cliente-registrar" class="waves-effect waves-light btn-small"><i class="material-icons left">monetization_on</i>Registrar abono</a>
+                <a id="pago_proveedor-registrar" class="waves-effect waves-light btn-small"><i class="material-icons left">monetization_on</i>Registrar abono</a>
             </div>
         </div>
 

@@ -49,12 +49,10 @@ new class Compra {
         }).then(() => {
             $('#compra-proveedor').value = '';
             M.FormSelect.init($('#compra-proveedor'));
-            
-            let tab='compras'
-            let colum='id_compra'
-            util.siguiente(tab,colum).then(data => {
+      
+            util.siguiente('compras','id_compra').then(data => {
                 if(data.ok){
-                    $('#compra-numero').value =data.colum;
+                    $('#compra-numero').value =data.siguiente;
                     M.updateTextFields();
                     this.crearListaProductos();
 

@@ -98,25 +98,32 @@ class Proveedor implements Persistible{
         }
     }
 
+    /**
+     * Devuelve una lista de productos para ser usada en listas seleccionables
+     */
     public function listar($param) {
+        $opcion = 0;
         extract($param);
 
-        $sql = "SELECT * FROM proveedores ORDER BY nombre";
+        if ($opcion == 1) { // filtrar sólo los proveedores con compras registradas
+            $sql = "SELECT DISTINCT p.id_proveedor, nombre, telefono, correo
+                        FROM proveedores p
+                        INNER JOIN compras c ON p.id_proveedor = c.id_proveedor
+                        ORDER BY nombre";
+        } else { // listar todos proveedores
+            $sql = "SELECT id_proveedor, nombre, telefono, correo
+                        FROM proveedores
+                        ORDER BY nombre";
+        }
 
         // se ejecuta la instrucción SQL, para obtener el conjunto de resultados (si los hay) como un objeto PDOStatement
         if ($stmt = $conexion->pdo->query($sql, PDO::FETCH_OBJ)) {
             // se obtiene el array de objetos con las posibles filas obtenidas
             $lista = $stmt->fetchAll();
-            // si la lista tiene elementos, se envía al frontend, si no, se envía un mensaje de error
-            if (count($lista)) {
-                echo json_encode(['ok' => TRUE, 'lista' => $lista]);
-            } else {
-                echo json_encode(['ok' => FALSE, 'mensaje' => 'No existe registro de personal']);
-            }
+            echo json_encode(['ok' => TRUE, 'lista' => $lista]);
         } else {
             // si falla la ejecución se comunica del error al frontend
-            $conexion->errorInfo(stmt);
-            echo json_encode(['ok' => FALSE, 'mensaje' => 'Imposible consultar el personal']);
+            echo json_encode(['ok' => FALSE, 'mensaje' => 'Fallo al realizar la consulta de proveedores']);
         }
     }
 

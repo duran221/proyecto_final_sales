@@ -550,6 +550,66 @@ CREATE OR REPLACE VIEW lista_detalle_venta AS
 	INNER JOIN PRODUCTOS PR ON DET.ID_PRODUCTO=PR.ID_PRODUCTO 
 	INNER JOIN PRESENTACIONES_PRODUCTOS PRE ON PR.ID_PRESENTACION_PRODUCTO=PRE.ID_PRESENTACION_PRODUCTO;			  
 
+	
+CREATE OR REPLACE VIEW lista_devoluciones_ventas AS
+ SELECT v.id_venta,
+    dv.id_devolucion_venta,
+    dv.fecha AS fecha_devolucion,
+    ddv.id_detalle_devolucion_venta,
+    ddv.id_producto,
+    lp.descripcion_producto,
+    ddv.cantidad AS cantidad_devuelta,
+    lp.precio
+   FROM detalles_devoluciones_ventas ddv
+     JOIN devoluciones_ventas dv ON ddv.id_devolucion_venta = dv.id_devolucion_venta
+     JOIN lista_productos lp ON ddv.id_producto = lp.id_producto
+     JOIN ventas v ON dv.id_venta = v.id_venta;
+
+CREATE OR REPLACE VIEW lista_devoluciones_ventas_agrupadas AS
+ SELECT l.id_venta,
+    l.fecha_devolucion,
+    l.id_producto,
+    l.descripcion_producto,
+    sum(l.cantidad_devuelta) AS total_devuelto,
+    l.precio
+   FROM lista_devoluciones_ventas l
+  GROUP BY l.id_venta, l.fecha_devolucion, l.id_producto, l.descripcion_producto, l.precio;
+
+CREATE OR REPLACE VIEW lista_detalles_compras AS
+ SELECT c.id_compra,
+    c.fecha_compra,
+    dc.id_detalle_compra,
+    dc.id_producto AS producto,
+    lp.descripcion_producto,
+    dc.cantidad_pedida,
+	dc.cantidad_recibida,
+    dc.valor_producto,
+    dc.cantidad_recibida::numeric * dc.valor_producto AS total_linea
+   FROM detalles_compras dc
+     JOIN lista_productos lp ON dc.id_producto = lp.id_producto
+     JOIN compras c ON c.id_compra = dc.id_compra;
+	 
+CREATE OR REPLACE VIEW lista_detalles_compras_agrupadas AS
+ SELECT ldc.id_compra,
+    ldc.fecha_compra,
+    ldc.producto,
+    ldc.descripcion_producto,
+    sum(ldc.cantidad_recibida) AS recibido,
+    ldc.valor_producto
+   FROM lista_detalles_compras ldc
+  GROUP BY ldc.id_compra, ldc.fecha_compra, ldc.producto, ldc.descripcion_producto, ldc.valor_producto;
+
+CREATE OR REPLACE VIEW lista_devoluciones_compras_agrupadas AS
+ SELECT l.id_compra,
+    l.fecha_devolucion,
+    l.id_producto,
+    l.descripcion_producto,
+    sum(l.cantidad) AS total_devuelto,
+    l.precio
+   FROM lista_devoluciones_compras l
+  GROUP BY l.id_compra, l.fecha_devolucion, l.id_producto, l.descripcion_producto, l.precio;
+
+
 CREATE OR REPLACE VIEW lista_detalle_compra AS
 	SELECT DET.CANTIDAD_RECIBIDA,
 	0 CANTIDAD_DEVUELTA,
@@ -791,118 +851,99 @@ $BODY$;
 
 
 
--- la función que registra la venta, los detalles de venta y afecta el stock de productos
+-- la función que registra devoluciones por venta, los detalles de devolución por ventas y afecta el stock de productos
+
 CREATE OR REPLACE FUNCTION insertar_devolucion_venta(datos_devolucion JSON)
     RETURNS integer
     LANGUAGE 'plpgsql'
 AS $BODY$
 DECLARE
 	i INTEGER;
-	id_devolucion INTEGER;
+	iddevolucion INTEGER;
 	idproducto INTEGER;
-	idventa INTEGER;
 	fecha DATE;
-	cliente VARCHAR;
-	cant INTEGER;
-	candidad_disponible INTEGER;
+	venta INTEGER;
 	linea_devolucion RECORD;
 BEGIN
-	idventa = 0;
-	-- transfiere a variables las propiedades del objeto JSON 'datos_venta', excepto el array 'detalle'
-	SELECT (datos_devolucion#>>'{fecha_devolucion}')::DATE FROM json_each(datos_devolucion) WHERE key = 'fecha_devolucion' INTO fecha;
-	SELECT (datos_devolucion#>>'{venta}')::INTEGER FROM json_each(datos_devolucion) WHERE key = 'venta' INTO idventa;
+	iddevolucion = 0;
+	-- transfiere a variables las propiedades del objeto JSON 'datos_devolucion', excepto el array 'detalle'
+	SELECT (datos_devolucion#>>'{fecha}')::DATE FROM json_each(datos_devolucion) WHERE key = 'fecha' INTO fecha;
+	SELECT (datos_devolucion#>>'{venta}')::INTEGER FROM json_each(datos_devolucion) WHERE key = 'venta' INTO venta;
 	
-	INSERT INTO devoluciones_ventas(id_venta,fecha)
-		VALUES (idventa,fecha) 
-		RETURNING id_devolucion_venta INTO id_devolucion;
+	INSERT INTO devoluciones_ventas(id_venta, fecha) VALUES (venta, fecha) RETURNING id_devolucion_venta INTO iddevolucion;
 	
-	IF id_devolucion > 0 THEN
-		-- recorre las filas correspondientes a cada detalle de venta
+	IF iddevolucion > 0 THEN
+		-- recorre las filas correspondientes a cada detalle de devoluciones por venta
 		FOR linea_devolucion IN
 			-- expande el array de objetos 'detalle' a un conjunto de filas de tipo 'tipo_detalle'
 			SELECT * FROM json_populate_recordset(null::tipo_detalle, (
 				-- recupera el JSON correspondiente a la propiedad 'detalle'
 				SELECT value FROM json_each(datos_devolucion) WHERE key = 'detalle')
 			) LOOP
-
-			--Se castea el item del bloque anonimo
-			idproducto= linea_devolucion.id_producto::integer;
 			
-			-- por cada detalle, inserta una línea de venta. Esta versión NO maneja descuentos (0.0)
-			INSERT INTO detalles_devoluciones_ventas(id_devolucion_venta,id_producto,cantidad)
-				VALUES (id_devolucion,idproducto,linea_devolucion.cantidad_devuelta);
+			idproducto = linea_devolucion.producto::integer; -- un cast de varchar a integer
+			
+			-- por cada detalle, inserta una línea de devolucion.
+			INSERT INTO detalles_devoluciones_ventas(id_devolucion_venta, id_producto, cantidad)
+				VALUES (iddevolucion, idproducto, linea_devolucion.cantidad);
 
-			-- en productos, sustraer la cantidad vendida de la cantidad_disponible 
-			UPDATE productos SET cantidad_disponible = cantidad_disponible + linea_devolucion.cantidad_devuelta 
-				WHERE id_producto = linea_devolucion.id_producto;
-
-			UPDATE DETALLES_VENTAS SET cantidad=cantidad-linea_devolucion.cantidad_devuelta;
-
+			-- en productos, agregar la cantidad devuelta a la cantidad_disponible 
+			UPDATE productos SET cantidad_disponible = cantidad_disponible + linea_devolucion.cantidad 
+				WHERE id_producto = idproducto;
 		END LOOP;
 	END IF;
-
-	RETURN id_devolucion;
+	
+	RETURN iddevolucion;
 END;
 $BODY$;
 
--- la función registra la devolucion de una compra y los detalles de devolucion de compra
+
+
+-- la función que registra devoluciones por venta, los detalles de devolución por ventas y afecta el stock de productos
+
 CREATE OR REPLACE FUNCTION insertar_devolucion_compra(datos_devolucion JSON)
     RETURNS integer
     LANGUAGE 'plpgsql'
 AS $BODY$
 DECLARE
 	i INTEGER;
-	id_devolucion INTEGER;
+	iddevolucion INTEGER;
 	idproducto INTEGER;
-	idcompra INTEGER;
 	fecha DATE;
-	proveedor VARCHAR;
-	cant INTEGER;
-	candidad_disponible INTEGER;
+	compra INTEGER;
 	linea_devolucion RECORD;
 BEGIN
-	idcompra = 0;
-	-- transfiere a variables las propiedades del objeto JSON 'datos_venta', excepto el array 'detalle'
-	SELECT (datos_devolucion#>>'{fecha_devolucion}')::DATE FROM json_each(datos_devolucion) WHERE key = 'fecha_devolucion' INTO fecha;
-	SELECT (datos_devolucion#>>'{compra}')::INTEGER FROM json_each(datos_devolucion) WHERE key = 'compra' INTO idcompra;
+	iddevolucion = 0;
+	-- transfiere a variables las propiedades del objeto JSON 'datos_devolucion', excepto el array 'detalle'
+	SELECT (datos_devolucion#>>'{fecha}')::DATE FROM json_each(datos_devolucion) WHERE key = 'fecha' INTO fecha;
+	SELECT (datos_devolucion#>>'{compra}')::INTEGER FROM json_each(datos_devolucion) WHERE key = 'compra' INTO compra;
 	
-	INSERT INTO devoluciones_compras(id_compra,fecha_devolucion)
-		VALUES (idcompra,fecha) 
-		RETURNING id_devolucion_compra INTO id_devolucion;
+	INSERT INTO devoluciones_compras(id_compra, fecha_devolucion) VALUES (compra, fecha) RETURNING id_devolucion_compra INTO iddevolucion;
 	
-	IF id_devolucion > 0 THEN
-		-- recorre las filas correspondientes a cada detalle de venta
+	IF iddevolucion > 0 THEN
+		-- recorre las filas correspondientes a cada detalle de devoluciones por compra
 		FOR linea_devolucion IN
 			-- expande el array de objetos 'detalle' a un conjunto de filas de tipo 'tipo_detalle'
 			SELECT * FROM json_populate_recordset(null::tipo_detalle, (
 				-- recupera el JSON correspondiente a la propiedad 'detalle'
 				SELECT value FROM json_each(datos_devolucion) WHERE key = 'detalle')
 			) LOOP
-
-			--Se castea el item del bloque anonimo
-			idproducto= linea_devolucion.id_producto::integer;
 			
-			-- por cada detalle, inserta una línea de compra.
-			INSERT INTO detalles_devoluciones_compras(id_devolucion_compra,id_producto,cantidad)
-				VALUES (id_devolucion,idproducto,linea_devolucion.cantidad_devuelta);
+			idproducto = linea_devolucion.producto::integer; -- un cast de varchar a integer
+			
+			-- por cada detalle, inserta una línea de devolucion.
+			INSERT INTO detalles_devoluciones_compras(id_devolucion_compra, id_producto, cantidad)
+				VALUES (iddevolucion, idproducto, linea_devolucion.cantidad);
 
-			-- en productos, sustraer la cantidad vendida de la cantidad_disponible 
-			UPDATE productos SET cantidad_disponible = cantidad_disponible - linea_devolucion.cantidad_devuelta 
-				WHERE id_producto = linea_devolucion.id_producto;
-
-			UPDATE DETALLES_COMPRAS SET cantidad_recibida=cantidad_recibida-linea_devolucion.cantidad_devuelta;
-
+			-- en productos, agregar la cantidad devuelta a la cantidad_disponible 
+			UPDATE productos SET cantidad_disponible = cantidad_disponible - linea_devolucion.cantidad 
+				WHERE id_producto = idproducto;
 		END LOOP;
 	END IF;
-
-	RETURN id_devolucion;
+	
+	RETURN iddevolucion;
 END;
 $BODY$;
-
-
-
-
-
 
 
 CREATE OR REPLACE FUNCTION siguiente(
@@ -939,6 +980,20 @@ END;
 $BODY$;
 
 
+CREATE OR REPLACE FUNCTION insertar_pago_proveedor(proveedor character varying, valor numeric, fecha date) RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+   DECLARE
+      idpago integer;
+BEGIN
+	idpago = 0;
+	INSERT INTO pagos_proveedores(id_proveedor, valor_pago, fecha_pago) VALUES (proveedor, valor, fecha)
+		RETURNING id_pago_proveedor into idpago;
+	RETURN idpago;
+END;
+$BODY$;
+
+
 
 CREATE OR REPLACE FUNCTION insertar_pago_cliente(cliente character varying, valor numeric, fecha date) RETURNS integer
     LANGUAGE 'plpgsql'
@@ -952,6 +1007,9 @@ BEGIN
 	RETURN idpago;
 END;
 $BODY$;
+
+
+
 
 CREATE OR REPLACE FUNCTION insertar_baja_producto(
 	tipobaja character varying,

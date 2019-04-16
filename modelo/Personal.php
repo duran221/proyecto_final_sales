@@ -112,7 +112,7 @@ class Personal implements Persistible{
     public function listar($param) {
         extract($param);
 
-        $sql = "SELECT * FROM personal WHERE perfil='Vendedor' ORDER BY nombre";
+        $sql = "SELECT * FROM personal ORDER BY nombre";
 
         // se ejecuta la instrucción SQL, para obtener el conjunto de resultados (si los hay) como un objeto PDOStatement
         if ($stmt = $conexion->pdo->query($sql, PDO::FETCH_OBJ)) {
@@ -131,6 +131,30 @@ class Personal implements Persistible{
         }
     }
 
+    public function autenticar($param) {
+        extract($param);
+
+        $sql = "SELECT id_persona, nombre, perfil, contrasena FROM personal
+                   WHERE id_persona = :id_persona";
+        
+        $instruccion = $conexion->pdo->prepare($sql);
+        if ($instruccion) {
+            $instruccion->bindParam(':id_persona', $idPersona);
+            if ($instruccion->execute()) {
+                $usuario = $instruccion->fetch(PDO::FETCH_ASSOC);
+                if (password_verify($contrasena, $usuario['contrasena'])) {
+                    unset($usuario['contrasena']); // no se envía la contraseña al front-end
+                    echo json_encode(["ok" => TRUE, "usuario" => $usuario]);
+                } else {
+                    echo json_encode(["ok" => FALSE, "mensaje" => "Falló la autenticación del usuario"]);
+                }
+            } else {
+                echo $conexion->errorInfo($instruccion);
+            }
+        } else {
+            echo json_encode(['ok' => FALSE, 'mensaje' => 'Falló el acceso a los datos del usuario']);
+        }
+    }
 
 
 
