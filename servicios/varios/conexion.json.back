@@ -1,0 +1,10 @@
+{
+    "BASE_DATOS": "prog3",
+    "SERVIDOR": "localhost",
+    "PUERTO": "5432",
+    "USUARIO": "postgres",
+    "CONTRASENA": "root",
+    "CLAVE_SITIO":"6LcgqJ0UAAAAAOH1oH3SpL9Bc95odf7UJ9cv3hQF",
+    "CLAVE_SECRETA":"6LcgqJ0UAAAAAMWyHC_7mLUBk-NsPZOukk3AO_GR",
+    "CLAVE_RECAPTCHA": "6LcgqJ0UAAAAAMWyHC_7mLUBk-NsPZOukk3AO_GR"
+}
